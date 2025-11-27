@@ -1,24 +1,81 @@
-from astrbot.api.event import filter, AstrMessageEvent, MessageEventResult
-from astrbot.api.star import Context, Star, register
-from astrbot.api import logger
+from pydantic import Field
+from pydantic.dataclasses import dataclass
 
-@register("helloworld", "YourName", "一个简单的 Hello World 插件", "1.0.0")
+from astrbot.api.star import Context, Star, register
+from astrbot.core.agent.run_context import ContextWrapper
+from astrbot.core.agent.tool import FunctionTool, ToolExecResult
+from astrbot.core.astr_agent_context import AstrAgentContext
+
+
+@register("deepresearch", "miaomiao", "基于Gemini的简单deepresearch实现", "0.0.1")
 class MyPlugin(Star):
-    def __init__(self, context: Context):
+    def __init__(self, context: Context, config: dict):
         super().__init__(context)
+        self.search_contexts: dict[str, list[dict]] = {}
+        self.search_provider_id = config.get("search_provider_id", "gemini_with_search")
 
     async def initialize(self):
         """可选择实现异步的插件初始化方法，当实例化该插件类之后会自动调用该方法。"""
 
-    # 注册指令的装饰器。指令名为 helloworld。注册成功后，发送 `/helloworld` 就会触发这个指令，并回复 `你好, {user_name}!`
-    @filter.command("helloworld")
-    async def helloworld(self, event: AstrMessageEvent):
-        """这是一个 hello world 指令""" # 这是 handler 的描述，将会被解析方便用户了解插件内容。建议填写。
-        user_name = event.get_sender_name()
-        message_str = event.message_str # 用户发的纯文本消息字符串
-        message_chain = event.get_messages() # 用户所发的消息的消息链 # from astrbot.api.message_components import *
-        logger.info(message_chain)
-        yield event.plain_result(f"Hello, {user_name}, 你发了 {message_str}!") # 发送一条纯文本消息
 
     async def terminate(self):
         """可选择实现异步的插件销毁方法，当插件被卸载/停用时会调用。"""
+
+
+
+# @dataclass
+# class BilibiliTool(FunctionTool[AstrAgentContext]):
+#     name: str = "bilibili_videos"  # 工具名称
+#     description: str = "A tool to fetch Bilibili videos."  # 工具描述
+#     parameters: dict = Field(
+#         default_factory=lambda: {
+#             "type": "object",
+#             "properties": {
+#                 "keywords": { # 参数名
+#                     "type": "string",# 参数类型
+#                     "description": "Keywords to search for Bilibili videos.",# 参数说明
+#                 },
+#             },
+#             "required": ["keywords"], # 必填参数
+#         }
+#     )
+
+#     async def call(
+#         self, context: ContextWrapper[AstrAgentContext], **kwargs
+#     ) -> ToolExecResult:
+#         return "1. 视频标题：如何使用AstrBot\n视频链接：xxxxxx"
+
+@dataclass
+class gemini_search(FunctionTool[AstrAgentContext]):
+    name: str = "gemini_search"
+    description: str = "Use Gemini's search capabilities to perform web searches and generate detailed search results for the query."
+    parameters: dict = Field(
+        default_factory=lambda: {
+            "type": "object",
+            "properties": {
+                "keywords": {
+                    "type": "string",
+                    "description": "Keywords or questions to search on the web.",
+                },
+            },
+            "required": ["keywords"],
+        }
+    )
+    search_provider_id: str = "gemini_with_search"
+
+    async def call(
+        self, context: ContextWrapper[AstrAgentContext], **kwargs
+    ) -> ToolExecResult:
+        keyword = kwargs.get("keywords")
+        system_prompt = "你是一个基于Gemini和Google搜索的网络搜索专家，能够根据用户提供的关键词或问题进行搜索，并将结果详细的反馈给用户并标注其来源。"
+
+        # 通过 context.context.context 获取 Star 的 Context
+        astrbot_context = context.context.context
+
+        llm_resp = await astrbot_context.llm_generate(
+            chat_provider_id=self.search_provider_id,
+            prompt=keyword,
+            system_prompt=system_prompt,
+            contexts=[],
+        )
+        return llm_resp.completion_text

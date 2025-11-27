@@ -1,0 +1,9 @@
+{
+  "search_provider_id": {
+        "description": "用于使用Gemini搜索的聊天模型ID，建议使用Gemini-2.5-flash并启用搜索功能",
+        "type": "string",
+        "hint": "前往服务提供商复制的聊天模型ID，例如 'gemini_with_search' 或其他启用搜索的服务商ID",
+        "default": "gemini_with_search",
+        "obvious_hint": true
+    }
+}
