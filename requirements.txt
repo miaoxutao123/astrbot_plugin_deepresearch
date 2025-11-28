@@ -1,0 +1,7 @@
+# 网页抓取
+playwright>=1.40.0
+trafilatura>=1.6.0
+
+# 学术搜索
+requests>=2.28.0
+xmltodict>=0.13.0
