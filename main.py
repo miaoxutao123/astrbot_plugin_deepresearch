@@ -27,7 +27,7 @@ class MyPlugin(Star):
         print("===========================")
 
         # 注册 gemini_search 工具
-        self.context.add_llm_tools(GeminiSearchTool())
+        self.context.add_llm_tools(GeminiSearchTool(),ArxivSearchTool(),SmartReader())
 
 
     async def terminate(self):
