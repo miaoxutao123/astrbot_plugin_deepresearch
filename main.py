@@ -94,7 +94,7 @@ class ArxivSearchTool(FunctionTool[AstrAgentContext]):
         self, context: ContextWrapper[AstrAgentContext], **kwargs
     ) -> ToolExecResult:
         keyword = kwargs.get("keywords")
-        proxy_base_url = self.context.context.config.get("scholar_proxy_base_url")
+        proxy_base_url = context.context.config.get("scholar_proxy_base_url")
         arxiv_tool = ArxivTool(proxy_base_url = proxy_base_url)
         results = arxiv_tool.search(query=keyword, limit=3)
 
