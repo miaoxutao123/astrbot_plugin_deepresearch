@@ -106,9 +106,13 @@ class ArxivSearchTool(FunctionTool[AstrAgentContext]):
         if not results:
             return "No results found."
 
+        # 检查是否返回了错误
+        if results and "error" in results[0]:
+            return f"Search error: {results[0]['error']}"
+
         response_lines = []
         for idx, paper in enumerate(results, start=1):
-            response_lines.append(f"{idx}. Title: {paper['title']}\n   Authors: {paper['authors']}\n   Year: {paper['year']}\n   Abstract: {paper['abstract']}\n   PDF URL: {paper.get('pdf_url', 'N/A')}\n")
+            response_lines.append(f"{idx}. Title: {paper.get('title', 'N/A')}\n   Authors: {paper.get('authors', 'N/A')}\n   Year: {paper.get('year', 'N/A')}\n   Abstract: {paper.get('abstract', 'N/A')}\n   PDF URL: {paper.get('pdf_url', 'N/A')}\n")
 
         return "\n".join(response_lines)
 
