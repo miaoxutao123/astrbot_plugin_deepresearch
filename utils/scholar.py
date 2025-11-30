@@ -13,7 +13,7 @@ import xmltodict
 
 # ================= 代码测试配置区域 =================
 # 你的 Cloudflare Worker 地址
-WORKER_URL = "https://scholar.quirkymeowcorner.fun"
+WORKER_URL = ""
 
 # 等收到邮件后，把 Key 填在这里
 # 没收到前先留 None，代码也能跑，只是 Semantic Scholar 容易报错
