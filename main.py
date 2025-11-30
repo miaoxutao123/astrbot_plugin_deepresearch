@@ -27,7 +27,11 @@ class MyPlugin(Star):
         print("===========================")
 
         # 注册 gemini_search 工具
-        self.context.add_llm_tools(GeminiSearchTool(),ArxivSearchTool(),SmartReader())
+        self.context.add_llm_tools(
+            GeminiSearchTool(),
+            ArxivSearchTool(proxy_base_url=self.scholar_proxy_base_url or ""),
+            SmartReader()
+        )
 
 
     async def terminate(self):
@@ -89,13 +93,13 @@ class ArxivSearchTool(FunctionTool[AstrAgentContext]):
             "required": ["keywords", "max_results"],
         }
     )
+    proxy_base_url: str = ""
 
     async def call(
         self, context: ContextWrapper[AstrAgentContext], **kwargs
     ) -> ToolExecResult:
         keyword = kwargs.get("keywords")
-        proxy_base_url = context.context.config.get("scholar_proxy_base_url")
-        arxiv_tool = ArxivTool(proxy_base_url = proxy_base_url)
+        arxiv_tool = ArxivTool(proxy_base_url=self.proxy_base_url)
         results = arxiv_tool.search(query=keyword, limit=3)
 
         if not results:
