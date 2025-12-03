@@ -1,3 +1,5 @@
+import os
+
 from pydantic import Field
 from pydantic.dataclasses import dataclass
 
@@ -5,10 +7,13 @@ from astrbot.api.star import Context, Star, register
 from astrbot.core.agent.run_context import ContextWrapper
 from astrbot.core.agent.tool import FunctionTool, ToolExecResult
 from astrbot.core.astr_agent_context import AstrAgentContext
+from astrbot.core.message.components import File
+from astrbot.core.message.message_event_result import MessageChain
 
+from .utils.document_utils import DocumentManager, MarkdownToWordConverter
 from .utils.scholar import ArxivTool
 from .utils.smart_reader import smart_read_to_markdown
-from .utils.document_utils import DocumentManager,MarkdownToWordConverter
+
 
 @register("deepresearch", "miaomiao", "基于Gemini的简单deepresearch实现", "0.0.1")
 class MyPlugin(Star):
@@ -27,11 +32,14 @@ class MyPlugin(Star):
         print("===========================")
 
         # 注册工具
+        arxiv_tool = ArxivSearchTool()
+        arxiv_tool.proxy_base_url = self.scholar_proxy_base_url or ""
         self.context.add_llm_tools(
             GeminiSearchTool(),
-            ArxivSearchTool(proxy_base_url=self.scholar_proxy_base_url or ""),
+            arxiv_tool,
             SmartReader(),
-            DocumentProceser()
+            DocumentProceser(),
+            SendFileTool()
         )
 
 
@@ -99,7 +107,9 @@ class ArxivSearchTool(FunctionTool[AstrAgentContext]):
     async def call(
         self, context: ContextWrapper[AstrAgentContext], **kwargs
     ) -> ToolExecResult:
-        keyword = kwargs.get("keywords")
+        keyword = kwargs.get("keywords", "")
+        if not keyword:
+            return "Keywords are required."
         max_results = kwargs.get("max_results", 3)
         print(f"[ArxivSearchTool] Searching for: {keyword}, max_results: {max_results}, proxy_base_url: {self.proxy_base_url}")
         arxiv_tool = ArxivTool(proxy_base_url=self.proxy_base_url)
@@ -139,7 +149,9 @@ class SmartReader(FunctionTool[AstrAgentContext]):
     async def call(
         self, context: ContextWrapper[AstrAgentContext], **kwargs
     ) -> ToolExecResult:
-        url = kwargs.get("url")
+        url = kwargs.get("url", "")
+        if not url:
+            return "URL is required."
         markdown_content = await smart_read_to_markdown(url)
         return markdown_content
 
@@ -175,13 +187,16 @@ class DocumentProceser(FunctionTool[AstrAgentContext]):
     async def call(
         self, context: ContextWrapper[AstrAgentContext], **kwargs
     ) -> ToolExecResult:
-        dm = DocumentManager(base_dir="./documents")
+        dm = DocumentManager(base_dir="./data/documents/plugin_data/astrbot_plugins/miao-deepresearch")
         mtw = MarkdownToWordConverter()
 
-        document_type = kwargs.get("document_type")
-        document_name = kwargs.get("document_name")
-        process_type = kwargs.get("process_type")
+        document_type = kwargs.get("document_type", "")
+        document_name = kwargs.get("document_name", "")
+        process_type = kwargs.get("process_type", "")
         document_content = kwargs.get("document_content", "")
+
+        if not document_name:
+            return "Document name is required."
 
         match process_type:
             case "create":
@@ -211,6 +226,44 @@ class DocumentProceser(FunctionTool[AstrAgentContext]):
             case _:
                 return "不支持的处理方法类型。"
 
+@dataclass
+class SendFileTool(FunctionTool[AstrAgentContext]):
+    name: str = "send_file"
+    description: str = "A tool to send files to the user. Use this when you need to send a generated file (like .docx, .pdf, .md) to the user."
+    parameters: dict = Field(
+        default_factory=lambda: {
+            "type": "object",
+            "properties": {
+                "file_path": {
+                    "type": "string",
+                    "description": "The absolute path of the file to send.",
+                },
+            },
+            "required": ["file_path"],
+        }
+    )
+
+    async def call(
+        self, context: ContextWrapper[AstrAgentContext], **kwargs
+    ) -> ToolExecResult:
+        file_path = kwargs.get("file_path")
+
+        if not file_path or not os.path.exists(file_path):
+            return f"Error: File not found at {file_path}"
+
+        # Get Context and Event
+        astr_context = context.context.context
+        event = context.context.event
+        umo = event.unified_msg_origin
+
+        # Construct MessageChain
+        chain = MessageChain()
+        chain.chain.append(File(name=os.path.basename(file_path), file=file_path))
+
+        # Send message
+        await astr_context.send_message(umo, chain)
+
+        return f"File {os.path.basename(file_path)} has been sent to the user."
 # @dataclass
 # class BilibiliTool(FunctionTool[AstrAgentContext]):
 #     name: str = "bilibili_videos"  # 工具名称
