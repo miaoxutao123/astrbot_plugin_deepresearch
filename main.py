@@ -290,7 +290,7 @@ class DocumentReviewer(FunctionTool[AstrAgentContext]):
     async def call(
             self, context: ContextWrapper[AstrAgentContext], **kwargs
             ) -> ToolExecResult:
-        review_provider_id: str = "gemini_with_search"
+        review_provider_id: str = "review_agent"
         prompt = "Please use DocumentProceser yourself to extract the document content from the given document name. \
                 Evaluate whether the answer or research in the document is comprehensive and whether it requires additional content. \
                 If supplementation is needed, please provide specific suggestions for what to add. \
