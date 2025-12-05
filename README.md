@@ -1,50 +1,71 @@
-# AstrBot Plugin DeepResearch
+# AstrBot Plugin AssistantResearchTeam
 
-基于 Gemini 的简单 DeepResearch 实现，为 AstrBot 添加联网深度搜索能力。
+为 AstrBot 提供 AI 研究助手能力的插件，集成联网搜索、学术论文检索、智能阅读和文档处理等功能。
 
-## 简介
+## 功能特性
 
-本插件为 AstrBot 注册了一个名为 `gemini_search` 的工具。该工具利用 Gemini 的搜索能力（Grounding with Google Search）来执行网络搜索，并生成详细的查询结果，从而让你的 Bot 能够回答需要实时信息的问题。
+**联网搜索** - 利用 Gemini 的 Google Search Grounding 能力进行实时网络搜索，返回带引用来源的详细结果。
 
-## 功能
+**学术论文检索** - 支持 ArXiv 论文搜索，可自定义返回结果数量，获取论文标题、作者、摘要及 PDF 链接。
 
-- **联网搜索**: 允许 LLM 通过调用工具进行实时网络搜索。
-- **深度整合**: 利用 Gemini 的能力对搜索结果进行分析、总结和引用。
+**智能阅读器** - 自动识别 URL 类型（网页/PDF），使用 Playwright 渲染动态页面，提取正文内容并转换为 Markdown 格式，同时提取元数据和参考文献。
+
+**文档处理** - 支持 Markdown 和 Word 文档的创建、读取、写入、删除操作，可将 Markdown 内容转换为格式化的 Word 文档。
+
+**文件发送** - 将生成的文档（.docx、.pdf、.md 等）直接发送给用户。
 
 ## 安装与配置
 
-### 1. 前置要求
+### 前置要求
 
-- 拥有 Google Gemini API Key，并确保该 Key 有权限使用 Search Grounding 功能。
-- 在 AstrBot 中配置了 Gemini 对应的 LLM 提供商。
+- AstrBot 环境
+- Google Gemini API Key（需支持 Search Grounding 功能）
+- 已配置 Gemini LLM 提供商
 
-### 2. 插件配置
+### 依赖安装
 
-本插件需要指定一个用于执行搜索的 LLM 提供商 ID。
+```bash
+pip install aiohttp xmltodict python-docx pymupdf trafilatura playwright
+playwright install chromium
+```
 
-默认情况下，插件会寻找 ID 为 `gemini_with_search` 的提供商。如果你的配置不同，请在插件配置中进行修改。
+### 插件配置
 
-**配置项：**
+| 配置项 | 说明 | 默认值 |
+|--------|------|--------|
+| `search_provider_id` | 用于执行搜索的 LLM 提供商 ID | `gemini_with_search` |
+| `scholar_proxy_base_url` | ArXiv 搜索代理地址（可选） | 空 |
 
-- `search_provider_id`: (可选) 用于执行搜索的 LLM 提供商 ID。默认为 `gemini_with_search`。
-
-**配置示例：**
-
-如果你的 Gemini 提供商 ID 是 `gemini_pro`，则配置如下：
+配置示例：
 
 ```json
 {
-  "search_provider_id": "gemini_pro"
+  "search_provider_id": "gemini_pro",
+  "scholar_proxy_base_url": "https://your-proxy.workers.dev"
 }
 ```
 
-## 使用方法
+## 注册的工具
 
-1. 加载并启用本插件。
-2. 在与 AstrBot 对话时，提出需要联网搜索的问题。
-   - 例如：“帮我搜索一下最近关于 DeepSeek 的新闻”
-   - 例如：“查找一下 Python 3.13 的新特性”
-3. LLM 会自动判断并调用 `gemini_search` 工具，返回基于搜索结果的回答。
+本插件为 AstrBot 注册以下 LLM 工具：
+
+| 工具名称 | 功能描述 |
+|----------|----------|
+| `gemini_search` | 使用 Gemini 进行联网搜索 |
+| `arxiv_search` | 搜索 ArXiv 学术论文 |
+| `smart_reader` | 智能读取网页或 PDF 内容 |
+| `Document_Proceser` | 文档创建、读取、写入、删除 |
+| `send_file` | 向用户发送文件 |
+
+## 使用示例
+
+与 Bot 对话时，LLM 会根据需求自动调用相应工具：
+
+- "帮我搜索最近关于大语言模型的新闻" → 调用 `gemini_search`
+- "查找 ArXiv 上关于 LLM Agent 的论文" → 调用 `arxiv_search`
+- "阅读这篇论文的内容：https://arxiv.org/pdf/xxx" → 调用 `smart_reader`
+- "把研究结果整理成 Word 文档" → 调用 `Document_Proceser`
+- "把文档发给我" → 调用 `send_file`
 
 ## 开发者信息
 

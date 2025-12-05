@@ -9,6 +9,7 @@ from astrbot.core.agent.tool import FunctionTool, ToolExecResult
 from astrbot.core.astr_agent_context import AstrAgentContext
 from astrbot.core.message.components import File
 from astrbot.core.message.message_event_result import MessageChain
+from astrbot.core.agent.tool import ToolSet
 
 from .utils.document_utils import DocumentManager, MarkdownToWordConverter
 from .utils.scholar import ArxivTool
@@ -26,10 +27,10 @@ class MyPlugin(Star):
     async def initialize(self):
         """可选择实现异步的插件初始化方法，当实例化该插件类之后会自动调用该方法。"""
         # 打印所有可用的 Provider ID（调试用）
-        print("=== Available Providers ===")
-        for prov in self.context.get_all_providers():
-            print(f"  ID: {prov.meta().id}, Type: {type(prov).__name__}")
-        print("===========================")
+        # print("=== Available Providers ===")
+        # for prov in self.context.get_all_providers():
+        #     print(f"  ID: {prov.meta().id}, Type: {type(prov).__name__}")
+        # print("===========================")
 
         # 注册工具
         arxiv_tool = ArxivSearchTool()
@@ -38,8 +39,9 @@ class MyPlugin(Star):
             GeminiSearchTool(),
             arxiv_tool,
             SmartReader(),
-            DocumentProceser(),
-            SendFileTool()
+            DocumentProcessor(),
+            SendFileTool(),
+            DocumentReviewer()
         )
 
 
@@ -156,7 +158,7 @@ class SmartReader(FunctionTool[AstrAgentContext]):
         return markdown_content
 
 @dataclass
-class DocumentProceser(FunctionTool[AstrAgentContext]):
+class DocumentProcessor(FunctionTool[AstrAgentContext]):
     name: str = "Document_Proceser"
     description: str = ""
     parameters: dict = Field(
@@ -264,6 +266,48 @@ class SendFileTool(FunctionTool[AstrAgentContext]):
         await astr_context.send_message(umo, chain)
 
         return f"File {os.path.basename(file_path)} has been sent to the user."
+
+@dataclass
+class DocumentReviewer(FunctionTool[AstrAgentContext]):
+    name: str = "document_reviewer"
+    description: str = "A subaent Used to review whether the answers or research in the document are comprehensive and whether any additions are needed."
+    parameters:dict = Field(
+        default_factory=lambda: {
+            "type": "object",
+            "properties": {
+                "document_name": {
+                    "type": "string",
+                    "description": "The name of the document to review.",
+                },
+                "question": {
+                    "type": "string",
+                    "description": "The question that the document answers or research is related to.",
+                },
+            },
+            "required": ["document_name", "question"],
+        }
+    )
+    async def call(
+            self, context: ContextWrapper[AstrAgentContext], **kwargs
+            ) -> ToolExecResult:
+        review_provider_id: str = "gemini_with_search"
+        prompt = "Please use DocumentProceser yourself to extract the document content from the given document name. \
+                Evaluate whether the answer or research in the document is comprehensive and whether it requires additional content. \
+                If supplementation is needed, please provide specific suggestions for what to add. \
+                When necessary (e.g., if you find the information ambiguous, or if the relevant knowledge is not available in your knowledge base), \
+                use the gemini_search tool to search for information on this topic and incorporate the search results into your supplementary suggestions."
+        astr_context = context.context.context
+        llm_resp = await astr_context.tool_loop_agent(
+            contexts=[],
+            chat_provider_id = review_provider_id,   # LLM provider ID
+            system_prompt = (prompt),
+            prompt = f"Question: {kwargs['question']}\nDocument_name: {kwargs['document_name']}",
+            tools = ToolSet([GeminiSearchTool(), DocumentProcessor()]),
+            max_steps = 10,
+            event=context.context.event
+        )
+        return llm_resp.completion_text
+
 # @dataclass
 # class BilibiliTool(FunctionTool[AstrAgentContext]):
 #     name: str = "bilibili_videos"  # 工具名称
