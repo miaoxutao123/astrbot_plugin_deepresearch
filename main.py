@@ -159,7 +159,7 @@ class SmartReader(FunctionTool[AstrAgentContext]):
 
 @dataclass
 class DocumentProcessor(FunctionTool[AstrAgentContext]):
-    name: str = "Document_Proceser"
+    name: str = "Document_Processor"
     description: str = ""
     parameters: dict = Field(
         default_factory=lambda: {
@@ -189,7 +189,7 @@ class DocumentProcessor(FunctionTool[AstrAgentContext]):
     async def call(
         self, context: ContextWrapper[AstrAgentContext], **kwargs
     ) -> ToolExecResult:
-        dm = DocumentManager(base_dir="./data/documents/plugin_data/astrbot_plugins/miao-deepresearch")
+        dm = DocumentManager(base_dir="./data/plugin_data/astrbot_plugin_AssistantResearchTeam")
         mtw = MarkdownToWordConverter()
 
         document_type = kwargs.get("document_type", "")
